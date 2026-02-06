@@ -1,4 +1,7 @@
+import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
+
+const PAGE_SIZE = 10;
 
 type CaptionRow = {
   id: string;
@@ -26,7 +29,13 @@ function getTopCaption(captions: CaptionRow[] | null | undefined): CaptionRow | 
   })[0];
 }
 
-export default async function Home() {
+type Props = { searchParams: Promise<{ page?: string }> };
+
+export default async function Home({ searchParams }: Props) {
+  const params = await searchParams;
+  const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
+  const from = (page - 1) * PAGE_SIZE;
+
   const { data: imageList, error: listError } = await supabase
     .from("images")
     .select("id")
@@ -45,7 +54,7 @@ export default async function Home() {
   }
 
   const ids = (imageList ?? []).map((r) => r.id);
-  const items: { image: ImageRow; topCaption: CaptionRow }[] = [];
+  const allItems: { image: ImageRow; topCaption: CaptionRow }[] = [];
 
   for (const id of ids) {
     const { data: row, error } = await supabase
@@ -56,13 +65,19 @@ export default async function Home() {
     if (error || !row) continue;
     const image = row as ImageRow;
     const topCaption = getTopCaption(image.captions);
-    if (topCaption) items.push({ image, topCaption: topCaption });
+    if (topCaption) allItems.push({ image, topCaption: topCaption });
   }
 
-  items.sort(
+  allItems.sort(
     (a, b) =>
       Number(b.topCaption.like_count) - Number(a.topCaption.like_count)
   );
+
+  const total = allItems.length;
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const hasPrev = page > 1;
+  const hasNext = page < totalPages;
+  const items = allItems.slice(from, from + PAGE_SIZE);
 
   return (
     <main className="min-h-screen bg-background">
@@ -117,6 +132,39 @@ export default async function Home() {
               No public images with captions yet.
             </p>
           </div>
+        )}
+
+        {totalPages > 1 && (
+          <nav
+            className="mt-12 flex flex-wrap items-center justify-center gap-2"
+            aria-label="Pagination"
+          >
+            <Link
+              href={hasPrev ? `/?page=${page - 1}` : "#"}
+              className={`rounded-lg border border-card-border px-4 py-2 text-sm font-medium transition-colors ${
+                hasPrev
+                  ? "bg-card text-foreground hover:bg-black/5 dark:hover:bg-white/5"
+                  : "cursor-not-allowed border-transparent bg-transparent text-muted"
+              }`}
+              aria-disabled={!hasPrev}
+            >
+              Previous
+            </Link>
+            <span className="px-2 text-sm text-muted">
+              Page {page} of {totalPages}
+            </span>
+            <Link
+              href={hasNext ? `/?page=${page + 1}` : "#"}
+              className={`rounded-lg border border-card-border px-4 py-2 text-sm font-medium transition-colors ${
+                hasNext
+                  ? "bg-card text-foreground hover:bg-black/5 dark:hover:bg-white/5"
+                  : "cursor-not-allowed border-transparent bg-transparent text-muted"
+              }`}
+              aria-disabled={!hasNext}
+            >
+              Next
+            </Link>
+          </nav>
         )}
       </div>
     </main>
