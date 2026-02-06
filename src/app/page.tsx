@@ -1,43 +1,68 @@
 import { supabase } from "@/lib/supabase/client";
 
-type Caption = {
+type CaptionRow = {
   id: string;
   content: string | null;
   like_count: number;
   is_public: boolean;
 };
 
-type ImageWithCaptions = {
+type ImageRow = {
   id: string;
   url: string | null;
   image_description: string | null;
   is_public: boolean | null;
-  captions: Caption[] | null;
+  captions: CaptionRow[] | null;
 };
 
+function getTopCaption(captions: CaptionRow[] | null | undefined): CaptionRow | null {
+  const list = captions ?? [];
+  if (list.length === 0) return null;
+  return [...list].sort((a, b) => {
+    const aLikes = Number(a.like_count) ?? 0;
+    const bLikes = Number(b.like_count) ?? 0;
+    if (bLikes !== aLikes) return bLikes - aLikes;
+    return String(a.id).localeCompare(String(b.id));
+  })[0];
+}
+
 export default async function Home() {
-  const { data: images, error } = await supabase
+  const { data: imageList, error: listError } = await supabase
     .from("images")
-    .select("id, url, image_description, is_public, captions(id, content, like_count, is_public)")
+    .select("id")
     .eq("is_public", true)
     .order("created_datetime_utc", { ascending: false });
 
-  if (error) {
+  if (listError) {
     return (
       <main className="flex min-h-screen items-center justify-center p-8">
         <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
           <p className="font-medium">Something went wrong</p>
-          <p className="mt-1 text-sm opacity-90">{error.message}</p>
+          <p className="mt-1 text-sm opacity-90">{listError.message}</p>
         </div>
       </main>
     );
   }
 
-  const allImages = (images ?? []) as ImageWithCaptions[];
-  const items = allImages.filter((img) => {
-    const publicCaptions = (img.captions ?? []).filter((c) => c.is_public);
-    return publicCaptions.length > 0;
-  });
+  const ids = (imageList ?? []).map((r) => r.id);
+  const items: { image: ImageRow; topCaption: CaptionRow }[] = [];
+
+  for (const id of ids) {
+    const { data: row, error } = await supabase
+      .from("images")
+      .select("id, url, image_description, is_public, captions(id, content, like_count, is_public)")
+      .eq("id", id)
+      .single();
+    if (error || !row) continue;
+    const image = row as ImageRow;
+    const topCaption = getTopCaption(image.captions);
+    if (topCaption) items.push({ image, topCaption: topCaption });
+  }
+
+  items.sort(
+    (a, b) =>
+      Number(b.topCaption.like_count) - Number(a.topCaption.like_count)
+  );
 
   return (
     <main className="min-h-screen bg-background">
@@ -52,12 +77,7 @@ export default async function Home() {
         </header>
 
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {items.map((img) => {
-            const publicCaptions = (img.captions ?? []).filter((c) => c.is_public);
-            const topCaption = [...publicCaptions].sort(
-              (a, b) => Number(b.like_count) - Number(a.like_count)
-            )[0];
-            return (
+          {items.map(({ image: img, topCaption }) => (
               <article
                 key={img.id}
                 className="group overflow-hidden rounded-2xl border border-card-border bg-card shadow-sm transition-shadow hover:shadow-md"
@@ -80,16 +100,15 @@ export default async function Home() {
                   <p className="line-clamp-2 text-sm text-foreground">
                     {topCaption.content ?? "—"}
                   </p>
-                  {topCaption.like_count > 0 && (
+                  {Number(topCaption.like_count) > 0 && (
                     <p className="mt-2 inline-flex items-center gap-1 text-xs font-medium text-accent">
                       <span aria-hidden>♥</span>
-                      {topCaption.like_count}
+                      {Number(topCaption.like_count)}
                     </p>
                   )}
                 </div>
               </article>
-            );
-          })}
+          ))}
         </div>
 
         {items.length === 0 && (
