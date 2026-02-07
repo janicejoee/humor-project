@@ -1,33 +1,8 @@
 import Link from "next/link";
-import { supabase } from "@/lib/supabase/client";
-
-const PAGE_SIZE = 10;
-
-type CaptionRow = {
-  id: string;
-  content: string | null;
-  like_count: number;
-  is_public: boolean;
-};
-
-type ImageRow = {
-  id: string;
-  url: string | null;
-  image_description: string | null;
-  is_public: boolean | null;
-  captions: CaptionRow[] | null;
-};
-
-function getTopCaption(captions: CaptionRow[] | null | undefined): CaptionRow | null {
-  const list = captions ?? [];
-  if (list.length === 0) return null;
-  return [...list].sort((a, b) => {
-    const aLikes = Number(a.like_count) ?? 0;
-    const bLikes = Number(b.like_count) ?? 0;
-    if (bLikes !== aLikes) return bLikes - aLikes;
-    return String(a.id).localeCompare(String(b.id));
-  })[0];
-}
+import {
+  fetchImagesWithTopCaptions,
+  PAGE_SIZE,
+} from "@/backend";
 
 type Props = { searchParams: Promise<{ page?: string }> };
 
@@ -36,43 +11,20 @@ export default async function Home({ searchParams }: Props) {
   const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
   const from = (page - 1) * PAGE_SIZE;
 
-  const { data: imageList, error: listError } = await supabase
-    .from("images")
-    .select("id")
-    .eq("is_public", true)
-    .order("created_datetime_utc", { ascending: false });
+  const result = await fetchImagesWithTopCaptions();
 
-  if (listError) {
+  if (!result.ok) {
     return (
       <main className="flex min-h-screen items-center justify-center p-8">
         <div className="rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
           <p className="font-medium">Something went wrong</p>
-          <p className="mt-1 text-sm opacity-90">{listError.message}</p>
+          <p className="mt-1 text-sm opacity-90">{result.error}</p>
         </div>
       </main>
     );
   }
 
-  const ids = (imageList ?? []).map((r) => r.id);
-  const allItems: { image: ImageRow; topCaption: CaptionRow }[] = [];
-
-  for (const id of ids) {
-    const { data: row, error } = await supabase
-      .from("images")
-      .select("id, url, image_description, is_public, captions(id, content, like_count, is_public)")
-      .eq("id", id)
-      .single();
-    if (error || !row) continue;
-    const image = row as ImageRow;
-    const topCaption = getTopCaption(image.captions);
-    if (topCaption) allItems.push({ image, topCaption: topCaption });
-  }
-
-  allItems.sort(
-    (a, b) =>
-      Number(b.topCaption.like_count) - Number(a.topCaption.like_count)
-  );
-
+  const allItems = result.items;
   const total = allItems.length;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const hasPrev = page > 1;
