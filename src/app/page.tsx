@@ -1,17 +1,17 @@
-import Link from "next/link";
-import {
-  fetchImagesWithTopCaptions,
-  PAGE_SIZE,
-} from "@/backend";
+import { fetchImagesWithTopCaptions } from "@/backend";
 
-type Props = { searchParams: Promise<{ page?: string }> };
+const FETCH_TIMEOUT_MS = 10000;
 
-export default async function Home({ searchParams }: Props) {
-  const params = await searchParams;
-  const page = Math.max(1, parseInt(params.page ?? "1", 10) || 1);
-  const from = (page - 1) * PAGE_SIZE;
-
-  const result = await fetchImagesWithTopCaptions();
+export default async function Home() {
+  const result = await Promise.race([
+    fetchImagesWithTopCaptions(),
+    new Promise<{ ok: false; error: string }>((resolve) =>
+      setTimeout(
+        () => resolve({ ok: false, error: "Request timed out. Please try again." }),
+        FETCH_TIMEOUT_MS
+      )
+    ),
+  ]);
 
   if (!result.ok) {
     return (
@@ -24,19 +24,14 @@ export default async function Home({ searchParams }: Props) {
     );
   }
 
-  const allItems = result.items;
-  const total = allItems.length;
-  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const hasPrev = page > 1;
-  const hasNext = page < totalPages;
-  const items = allItems.slice(from, from + PAGE_SIZE);
+  const items = result.items;
 
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <header className="mb-10">
           <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
-            Images &amp; captions
+            Crackd AI Images &amp; Captions
           </h1>
           <p className="mt-2 text-muted">
             Top-liked caption for each image
@@ -84,39 +79,6 @@ export default async function Home({ searchParams }: Props) {
               No public images with captions yet.
             </p>
           </div>
-        )}
-
-        {totalPages > 1 && (
-          <nav
-            className="mt-12 flex flex-wrap items-center justify-center gap-2"
-            aria-label="Pagination"
-          >
-            <Link
-              href={hasPrev ? `/?page=${page - 1}` : "#"}
-              className={`rounded-lg border border-card-border px-4 py-2 text-sm font-medium transition-colors ${
-                hasPrev
-                  ? "bg-card text-foreground hover:bg-black/5 dark:hover:bg-white/5"
-                  : "cursor-not-allowed border-transparent bg-transparent text-muted"
-              }`}
-              aria-disabled={!hasPrev}
-            >
-              Previous
-            </Link>
-            <span className="px-2 text-sm text-muted">
-              Page {page} of {totalPages}
-            </span>
-            <Link
-              href={hasNext ? `/?page=${page + 1}` : "#"}
-              className={`rounded-lg border border-card-border px-4 py-2 text-sm font-medium transition-colors ${
-                hasNext
-                  ? "bg-card text-foreground hover:bg-black/5 dark:hover:bg-white/5"
-                  : "cursor-not-allowed border-transparent bg-transparent text-muted"
-              }`}
-              aria-disabled={!hasNext}
-            >
-              Next
-            </Link>
-          </nav>
         )}
       </div>
     </main>

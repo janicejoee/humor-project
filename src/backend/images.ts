@@ -1,8 +1,6 @@
 import { supabase } from "@/lib/supabase/client";
 import type { CaptionRow, ImageRow, ImageWithTopCaption } from "./types";
 
-export const PAGE_SIZE = 12;
-
 function getTopCaption(
   captions: CaptionRow[] | null | undefined
 ): CaptionRow | null {
@@ -13,7 +11,7 @@ function getTopCaption(
     const bLikes = Number(b.like_count) ?? 0;
     if (bLikes !== aLikes) return bLikes - aLikes;
     return String(a.id).localeCompare(String(b.id));
-  })[0];
+  })[0] ?? null;
 }
 
 export type FetchImagesResult =
@@ -21,27 +19,36 @@ export type FetchImagesResult =
   | { ok: false; error: string };
 
 export async function fetchImagesWithTopCaptions(): Promise<FetchImagesResult> {
-  const { data: images, error } = await supabase
-    .from("images")
-    .select(
-      "id, url, image_description, is_public, captions(id, content, like_count, is_public)"
-    )
-    .eq("is_public", true)
-    .order("created_datetime_utc", { ascending: false });
+  try {
+    const { data, error } = await supabase
+      .from("images")
+      .select("id, url, image_description, is_public, captions(*)")
+      .eq("is_public", true);
 
-  if (error) return { ok: false, error: error.message };
+    if (error) {
+      return { ok: false, error: error.message };
+    }
 
-  const allItems: ImageWithTopCaption[] = [];
-  for (const row of images ?? []) {
-    const image = row as ImageRow;
-    const topCaption = getTopCaption(image.captions);
-    if (topCaption) allItems.push({ image, topCaption });
+    const rows = (data ?? []) as ImageRow[];
+    const items: ImageWithTopCaption[] = [];
+
+    for (const row of rows) {
+      const topCaption = getTopCaption(row.captions);
+      if (topCaption) {
+        items.push({ image: row, topCaption });
+      }
+    }
+
+    items.sort((a, b) => {
+      const aLikes = Number(a.topCaption.like_count) ?? 0;
+      const bLikes = Number(b.topCaption.like_count) ?? 0;
+      if (bLikes !== aLikes) return bLikes - aLikes;
+      return String(a.image.id).localeCompare(String(b.image.id));
+    });
+
+    return { ok: true, items };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return { ok: false, error: message };
   }
-
-  allItems.sort(
-    (a, b) =>
-      Number(b.topCaption.like_count) - Number(a.topCaption.like_count)
-  );
-
-  return { ok: true, items: allItems };
 }
