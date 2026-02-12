@@ -17,3 +17,4 @@ export type ImageWithTopCaption = {
   image: ImageRow;
   topCaption: CaptionRow;
 };
+

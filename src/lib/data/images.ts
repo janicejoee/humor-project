@@ -1,5 +1,5 @@
 import { supabase } from "@/lib/supabase/client";
-import type { CaptionRow, ImageRow, ImageWithTopCaption } from "./types";
+import type { CaptionRow, ImageRow, ImageWithTopCaption } from "@/lib/data/types";
 
 function getTopCaption(
   captions: CaptionRow[] | null | undefined
