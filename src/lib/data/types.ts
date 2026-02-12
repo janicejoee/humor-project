@@ -16,5 +16,12 @@ export type ImageRow = {
 export type ImageWithTopCaption = {
   image: ImageRow;
   topCaption: CaptionRow;
+  userHasVoted?: boolean;
 };
 
+export type ProfileRow = {
+  id: string;
+  email: string | null;
+  first_name: string | null;
+  last_name: string | null;
+};
