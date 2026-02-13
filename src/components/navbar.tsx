@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 
 const navLinks = [
   { href: "/", label: "Home" },
-  { href: "/gallery", label: "Gallery" },
+  { href: "/myHumor", label: "My Humor" },
   { href: "/about", label: "About" },
 ];
 
@@ -21,7 +21,7 @@ export async function Navbar() {
             href="/"
             className="text-sm font-semibold tracking-tight text-foreground hover:opacity-80 transition-opacity"
           >
-            Humor Project
+            CrackdTagram
           </Link>
           {user && (
             <nav className="hidden sm:flex items-center gap-4">

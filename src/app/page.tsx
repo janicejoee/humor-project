@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { fetchImagesWithTopCaptions } from "@/lib/data/images";
+import { fetchAllCaptionsWithImages } from "@/lib/data/images";
 import { createClient } from "@/lib/supabase/server";
 import { PostCard } from "../components/post-card";
 
@@ -36,7 +36,7 @@ export default async function Home() {
   }
 
   const result = await Promise.race([
-    fetchImagesWithTopCaptions(),
+    fetchAllCaptionsWithImages(supabase, user.id),
     new Promise<{ ok: false; error: string }>((resolve) =>
       setTimeout(
         () => resolve({ ok: false, error: "Request timed out. Please try again." }),
@@ -66,8 +66,13 @@ export default async function Home() {
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-2xl pb-8">
         <div className="space-y-8 pt-8">
-          {items.map(({ image: img, topCaption }) => (
-            <PostCard key={img.id} image={img} topCaption={topCaption} />
+          {items.map(({ image: img, topCaption, userHasVoted }) => (
+            <PostCard
+              key={`${img.id}-${topCaption.id}`}
+              image={img}
+              topCaption={topCaption}
+              initialLiked={userHasVoted ?? false}
+            />
           ))}
         </div>
 
