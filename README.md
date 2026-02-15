@@ -8,7 +8,7 @@ A platform for exploring and sharing humorous images and captions. Sign in with 
 - **My Humor** — A grid of the images and captions you’ve liked. Only visible when signed in.
 - **About** — Short description of the project and features.
 
-Authentication is handled with Supabase (Google OAuth). Data lives in Supabase: `images`, `captions`, `caption_votes`, and `profiles`.
+Authentication is handled with Supabase (Google OAuth). Data lives in Supabase: `images`, `captions`, `caption_votes`, and `profiles`. Voting: one row per `(profile_id, caption_id)` in `caption_votes`; `vote_value` +1 = like, -1 = dislike; no row = no vote.
 
 ## Getting started
 

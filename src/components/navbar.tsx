@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedUser } from "@/lib/supabase/server";
 
 const navLinks = [
   { href: "/", label: "Home" },
@@ -8,10 +8,7 @@ const navLinks = [
 ];
 
 export async function Navbar() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const user = await getCachedUser();
 
   return (
     <header className="border-b border-card-border bg-card/60 backdrop-blur">

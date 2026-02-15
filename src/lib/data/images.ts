@@ -54,20 +54,58 @@ export async function fetchImagesWithTopCaptions(): Promise<FetchImagesResult> {
   }
 }
 
+export type FetchAllCaptionsOptions = {
+  /** Max number of images to fetch from DB (default 50). */
+  imageLimit?: number;
+  /** Skip this many images (for pagination). */
+  imageOffset?: number;
+  /** Max number of caption cards to return (default 30). */
+  itemsLimit?: number;
+  /** Skip this many items after sort (for page 2, etc.). */
+  itemsOffset?: number;
+};
+
+const DEFAULT_IMAGE_LIMIT = 50;
+const DEFAULT_IMAGE_OFFSET = 0;
+const DEFAULT_ITEMS_LIMIT = 30;
+const DEFAULT_ITEMS_OFFSET = 0;
+
 /**
- * Fetches all captions for public images (one card per caption), sorted by like_count desc.
- * When profileId is provided, includes userHasVoted from caption_votes so the heart can show red.
+ * Fetches captions for public images (one card per caption), sorted by like_count desc.
+ * When profileId is provided, includes userHasVoted (like) and userHasDisliked from caption_votes.
+ * Supports imageLimit/imageOffset and itemsLimit/itemsOffset for smaller payloads and pagination.
  */
 export async function fetchAllCaptionsWithImages(
   supabaseClient: SupabaseClient,
-  profileId?: string | null
+  profileId?: string | null,
+  options?: FetchAllCaptionsOptions
 ): Promise<FetchImagesResult> {
   try {
-    const { data, error } = await supabaseClient
+    const imageLimit = options?.imageLimit ?? DEFAULT_IMAGE_LIMIT;
+    const imageOffset = options?.imageOffset ?? DEFAULT_IMAGE_OFFSET;
+    const itemsLimit = options?.itemsLimit ?? DEFAULT_ITEMS_LIMIT;
+    const itemsOffset = options?.itemsOffset ?? DEFAULT_ITEMS_OFFSET;
+
+    const imagesPromise = supabaseClient
       .from("images")
       .select("id, url, image_description, is_public, captions(*)")
-      .eq("is_public", true);
+      .eq("is_public", true)
+      .range(imageOffset, imageOffset + imageLimit - 1);
 
+    const votesPromise =
+      profileId != null
+        ? supabaseClient
+            .from("caption_votes")
+            .select("caption_id, vote_value")
+            .eq("profile_id", profileId)
+        : null;
+
+    const [imagesResult, votesResult] = await Promise.all([
+      imagesPromise,
+      votesPromise ?? Promise.resolve({ data: null, error: null }),
+    ]);
+
+    const { data, error } = imagesResult;
     if (error) {
       return { ok: false, error: error.message };
     }
@@ -78,7 +116,7 @@ export async function fetchAllCaptionsWithImages(
     for (const row of rows) {
       const captions = row.captions ?? [];
       for (const cap of captions) {
-        items.push({ image: row, topCaption: cap, userHasVoted: false });
+        items.push({ image: row, topCaption: cap, userHasVoted: false, userHasDisliked: false });
       }
     }
 
@@ -89,24 +127,22 @@ export async function fetchAllCaptionsWithImages(
       return String(a.topCaption.id).localeCompare(String(b.topCaption.id));
     });
 
-    if (profileId) {
-      const { data: votesData, error: votesError } = await supabaseClient
-        .from("caption_votes")
-        .select("caption_id")
-        .eq("profile_id", profileId)
-        .gt("vote_value", 0);
-
-      if (!votesError && votesData?.length) {
-        const likedCaptionIds = new Set(
-          (votesData as { caption_id: string }[]).map((r) => r.caption_id)
-        );
-        for (const item of items) {
-          item.userHasVoted = likedCaptionIds.has(item.topCaption.id);
-        }
+    if (profileId && !votesResult?.error && votesResult?.data?.length) {
+      const votes = votesResult.data as { caption_id: string; vote_value: number }[];
+      const likedCaptionIds = new Set(
+        votes.filter((r) => Number(r.vote_value) > 0).map((r) => r.caption_id)
+      );
+      const dislikedCaptionIds = new Set(
+        votes.filter((r) => Number(r.vote_value) < 0).map((r) => r.caption_id)
+      );
+      for (const item of items) {
+        item.userHasVoted = likedCaptionIds.has(item.topCaption.id);
+        item.userHasDisliked = dislikedCaptionIds.has(item.topCaption.id);
       }
     }
 
-    return { ok: true, items };
+    const sliced = items.slice(itemsOffset, itemsOffset + itemsLimit);
+    return { ok: true, items: sliced };
   } catch (e) {
     const message = e instanceof Error ? e.message : "Unknown error";
     return { ok: false, error: message };

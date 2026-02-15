@@ -1,5 +1,6 @@
 import { createServerClient as createSupabaseServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { cache } from "react";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://qihsgnfjqmkjmoowyfbn.supabase.co";
 const supabaseAnonKey =
@@ -27,3 +28,15 @@ export async function createClient() {
     },
   });
 }
+
+/** Cached per-request so Navbar and page share one auth round-trip. */
+export const getCachedClient = cache(createClient);
+
+/** Cached per-request so Navbar and page share one getUser() call. */
+export const getCachedUser = cache(async () => {
+  const supabase = await getCachedClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  return user ?? null;
+});

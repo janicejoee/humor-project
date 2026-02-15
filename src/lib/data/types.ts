@@ -16,7 +16,10 @@ export type ImageRow = {
 export type ImageWithTopCaption = {
   image: ImageRow;
   topCaption: CaptionRow;
+  /** User has liked (thumb up). */
   userHasVoted?: boolean;
+  /** User has disliked (thumb down). */
+  userHasDisliked?: boolean;
 };
 
 export type ProfileRow = {

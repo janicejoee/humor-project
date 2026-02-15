@@ -1,17 +1,108 @@
 import Link from "next/link";
+import { Suspense } from "react";
+import { unstable_cache } from "next/cache";
 import { fetchAllCaptionsWithImages } from "@/lib/data/images";
-import { createClient } from "@/lib/supabase/server";
+import { getCachedClient, getCachedUser } from "@/lib/supabase/server";
 import { PostCard } from "../components/post-card";
+import Loading from "./loading";
 
 const FETCH_TIMEOUT_MS = 10000;
+const ITEMS_PER_PAGE = 30;
+const IMAGE_LIMIT = 100;
+const CACHE_REVALIDATE_SECONDS = 60;
 
-export default async function Home() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+async function HomeFeed({ userId, page }: { userId: string; page: number }) {
+  const itemsOffset = (page - 1) * ITEMS_PER_PAGE;
 
-  // If not logged in, show only a sign-in call-to-action
+  const cachedFetch = unstable_cache(
+    async () => {
+      const client = await getCachedClient();
+      return fetchAllCaptionsWithImages(client, userId, {
+        imageLimit: IMAGE_LIMIT,
+        itemsLimit: ITEMS_PER_PAGE,
+        itemsOffset,
+      });
+    },
+    ["home-captions", userId, String(page)],
+    { revalidate: CACHE_REVALIDATE_SECONDS }
+  );
+
+  const result = await Promise.race([
+    cachedFetch(),
+    new Promise<{ ok: false; error: string }>((resolve) =>
+      setTimeout(
+        () => resolve({ ok: false, error: "Request timed out. Please try again." }),
+        FETCH_TIMEOUT_MS
+      )
+    ),
+  ]);
+
+  if (!result.ok) {
+    return (
+      <div className="flex items-center justify-center px-4 py-10">
+        <div className="max-w-md rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
+          <p className="font-medium">Something went wrong</p>
+          <p className="mt-1 text-sm opacity-90">{result.error}</p>
+        </div>
+      </div>
+    );
+  }
+
+  const items = result.items;
+
+  return (
+    <>
+      <div className="space-y-8 pt-8">
+        {items.map(({ image: img, topCaption, userHasVoted, userHasDisliked }) => (
+          <PostCard
+            key={`${img.id}-${topCaption.id}`}
+            image={img}
+            topCaption={topCaption}
+            initialLiked={userHasVoted ?? false}
+            initialDisliked={userHasDisliked ?? false}
+          />
+        ))}
+      </div>
+
+      {items.length === 0 && (
+        <div className="flex min-h-[60vh] items-center justify-center">
+          <div className="rounded-2xl border border-dashed border-card-border bg-card/50 px-8 py-16 text-center">
+            <p className="text-muted">
+              No images with captions yet. Check back later!
+            </p>
+          </div>
+        </div>
+      )}
+
+      {items.length === ITEMS_PER_PAGE && (
+        <div className="mt-8 flex justify-center gap-4">
+          {page > 1 && (
+            <Link
+              href={page === 2 ? "/" : `/?page=${page - 1}`}
+              className="rounded-lg border border-card-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:opacity-90"
+            >
+              Previous
+            </Link>
+          )}
+          <Link
+            href={`/?page=${page + 1}`}
+            className="rounded-lg border border-card-border bg-card px-4 py-2 text-sm font-medium text-foreground hover:opacity-90"
+          >
+            Next
+          </Link>
+        </div>
+      )}
+    </>
+  );
+}
+
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>;
+}) {
+  const user = await getCachedUser();
+
   if (!user) {
     return (
       <main className="min-h-screen bg-background">
@@ -35,56 +126,15 @@ export default async function Home() {
     );
   }
 
-  const result = await Promise.race([
-    fetchAllCaptionsWithImages(supabase, user.id),
-    new Promise<{ ok: false; error: string }>((resolve) =>
-      setTimeout(
-        () => resolve({ ok: false, error: "Request timed out. Please try again." }),
-        FETCH_TIMEOUT_MS
-      )
-    ),
-  ]);
-
-  if (!result.ok) {
-    return (
-      <main className="min-h-screen bg-background">
-        <div className="mx-auto max-w-2xl px-4 py-10">
-          <div className="flex items-center justify-center">
-            <div className="max-w-md rounded-2xl border border-red-200 bg-red-50 px-6 py-4 text-red-800 dark:border-red-900/50 dark:bg-red-950/30 dark:text-red-200">
-              <p className="font-medium">Something went wrong</p>
-              <p className="mt-1 text-sm opacity-90">{result.error}</p>
-            </div>
-          </div>
-        </div>
-      </main>
-    );
-  }
-
-  const items = result.items;
+  const params = await searchParams;
+  const page = Math.max(1, parseInt(params?.page ?? "1", 10) || 1);
 
   return (
     <main className="min-h-screen bg-background">
       <div className="mx-auto max-w-2xl pb-8">
-        <div className="space-y-8 pt-8">
-          {items.map(({ image: img, topCaption, userHasVoted }) => (
-            <PostCard
-              key={`${img.id}-${topCaption.id}`}
-              image={img}
-              topCaption={topCaption}
-              initialLiked={userHasVoted ?? false}
-            />
-          ))}
-        </div>
-
-        {items.length === 0 && (
-          <div className="flex min-h-[60vh] items-center justify-center">
-            <div className="rounded-2xl border border-dashed border-card-border bg-card/50 px-8 py-16 text-center">
-              <p className="text-muted">
-                No images with captions yet. Check back later!
-              </p>
-            </div>
-          </div>
-        )}
+        <Suspense fallback={<Loading />}>
+          <HomeFeed userId={user.id} page={page} />
+        </Suspense>
       </div>
     </main>
   );
