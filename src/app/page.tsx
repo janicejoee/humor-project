@@ -8,7 +8,8 @@ import Loading from "./loading";
 
 const FETCH_TIMEOUT_MS = 10000;
 const ITEMS_PER_PAGE = 30;
-const IMAGE_LIMIT = 100;
+// No imageLimit - fetch all images so pagination works correctly
+// Pagination is by caption cards (items), not images
 const CACHE_REVALIDATE_SECONDS = 60;
 
 async function HomeFeed({ userId, page }: { userId: string; page: number }) {
@@ -18,7 +19,7 @@ async function HomeFeed({ userId, page }: { userId: string; page: number }) {
     async () => {
       const client = await getCachedClient();
       return fetchAllCaptionsWithImages(client, userId, {
-        imageLimit: IMAGE_LIMIT,
+        // No imageLimit - fetch all images, then paginate by caption cards
         itemsLimit: ITEMS_PER_PAGE,
         itemsOffset,
       });

@@ -81,16 +81,22 @@ export async function fetchAllCaptionsWithImages(
   options?: FetchAllCaptionsOptions
 ): Promise<FetchImagesResult> {
   try {
-    const imageLimit = options?.imageLimit ?? DEFAULT_IMAGE_LIMIT;
+    const imageLimit = options?.imageLimit;
     const imageOffset = options?.imageOffset ?? DEFAULT_IMAGE_OFFSET;
     const itemsLimit = options?.itemsLimit ?? DEFAULT_ITEMS_LIMIT;
     const itemsOffset = options?.itemsOffset ?? DEFAULT_ITEMS_OFFSET;
 
-    const imagesPromise = supabaseClient
+    let imagesQuery = supabaseClient
       .from("images")
       .select("id, url, image_description, is_public, captions(*)")
-      .eq("is_public", true)
-      .range(imageOffset, imageOffset + imageLimit - 1);
+      .eq("is_public", true);
+    
+    // Only apply range if imageLimit is specified (for pagination by images)
+    if (imageLimit != null) {
+      imagesQuery = imagesQuery.range(imageOffset, imageOffset + imageLimit - 1);
+    }
+
+    const imagesPromise = imagesQuery;
 
     const votesPromise =
       profileId != null
