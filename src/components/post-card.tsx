@@ -88,21 +88,21 @@ export function PostCard({
   return (
     <article className="group flex flex-col overflow-hidden rounded-xl border border-card-border bg-card shadow-sm transition-all hover:shadow-md hover:-translate-y-1">
       {/* Caption and Actions Section - Top */}
-      <div className="px-5 pt-5 pb-4">
+      <div className="px-4 pt-4 pb-3 sm:px-5 sm:pt-5 sm:pb-4">
         {/* Caption Section - Highlighted at top */}
-        <div className="mb-4">
-          <p className="text-lg leading-relaxed text-foreground">
+        <div className="mb-3 sm:mb-4">
+          <p className="text-base leading-relaxed text-foreground sm:text-lg">
             {topCaption.content ?? "No caption yet for this image."}
           </p>
         </div>
 
         {/* Like / Dislike Section */}
-        <div className="flex items-center gap-2 border-t border-card-border pt-4">
+        <div className="flex items-center gap-2 border-t border-card-border pt-3 sm:pt-4">
           <button
             type="button"
             onClick={() => handleVote(1)}
             disabled={pending}
-            className="flex items-center justify-center rounded-lg p-2 transition-all hover:bg-green-50 hover:scale-110 dark:hover:bg-green-900/20 disabled:opacity-50 disabled:hover:scale-100"
+            className="flex items-center justify-center rounded-lg p-2.5 transition-all hover:bg-green-50 hover:scale-110 active:scale-95 dark:hover:bg-green-900/20 disabled:opacity-50 disabled:hover:scale-100 sm:p-2"
             aria-label={isLiked ? "Remove like" : "Like this caption"}
           >
             <ThumbUp filled={isLiked} />
@@ -111,7 +111,7 @@ export function PostCard({
             type="button"
             onClick={() => handleVote(-1)}
             disabled={pending}
-            className="flex items-center justify-center rounded-lg p-2 transition-all hover:bg-red-50 hover:scale-110 dark:hover:bg-red-900/20 disabled:opacity-50 disabled:hover:scale-100"
+            className="flex items-center justify-center rounded-lg p-2.5 transition-all hover:bg-red-50 hover:scale-110 active:scale-95 dark:hover:bg-red-900/20 disabled:opacity-50 disabled:hover:scale-100 sm:p-2"
             aria-label={isDisliked ? "Remove dislike" : "Dislike this caption"}
           >
             <ThumbDown filled={isDisliked} />

@@ -54,23 +54,23 @@ async function HomeFeed({ userId, page }: { userId: string; page: number }) {
   return (
     <>
       {/* Page Header */}
-      <div className="pt-8 pb-6">
-        <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">
+      <div className="pt-6 pb-4 sm:pt-8 sm:pb-6">
+        <h1 className="text-2xl font-bold tracking-tight text-foreground sm:text-3xl md:text-4xl">
           Discover Humor
         </h1>
-        <p className="mt-2 text-muted">
+        <p className="mt-2 text-sm text-muted sm:text-base">
           Browse captions sorted by popularity. Like the ones that make you laugh!
         </p>
         {page > 1 && (
-          <div className="mt-3">
-            <span className="text-sm text-muted">Page {page}</span>
+          <div className="mt-2 sm:mt-3">
+            <span className="text-xs text-muted sm:text-sm">Page {page}</span>
           </div>
         )}
       </div>
 
       {/* Captions Feed */}
       {items.length > 0 ? (
-        <div className="space-y-6">
+        <div className="space-y-4 sm:space-y-6">
           {items.map(({ image: img, topCaption, userHasVoted, userHasDisliked }) => (
             <PostCard
               key={`${img.id}-${topCaption.id}`}
@@ -82,15 +82,15 @@ async function HomeFeed({ userId, page }: { userId: string; page: number }) {
           ))}
         </div>
       ) : (
-        <div className="flex min-h-[60vh] items-center justify-center py-20">
-          <div className="w-full max-w-md rounded-2xl border border-dashed border-card-border bg-card/50 px-8 py-16 text-center">
-            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-              <svg className="h-8 w-8 text-muted-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div className="flex min-h-[60vh] items-center justify-center py-12 sm:py-20">
+          <div className="w-full max-w-md rounded-2xl border border-dashed border-card-border bg-card/50 px-4 py-12 text-center sm:px-8 sm:py-16">
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-muted sm:mb-4 sm:h-16 sm:w-16">
+              <svg className="h-6 w-6 text-muted-foreground sm:h-8 sm:w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
               </svg>
             </div>
-            <p className="text-lg font-medium text-foreground">No captions yet</p>
-            <p className="mt-2 text-muted">
+            <p className="text-base font-medium text-foreground sm:text-lg">No captions yet</p>
+            <p className="mt-2 text-sm text-muted sm:text-base">
               Check back later for new images and captions!
             </p>
           </div>
@@ -99,11 +99,11 @@ async function HomeFeed({ userId, page }: { userId: string; page: number }) {
 
       {/* Pagination */}
       {items.length === ITEMS_PER_PAGE && (
-        <div className="mt-12 flex items-center justify-center gap-3 border-t border-card-border pt-8">
+        <div className="mt-8 flex flex-col items-stretch gap-3 border-t border-card-border pt-6 sm:mt-12 sm:flex-row sm:items-center sm:justify-center sm:gap-3 sm:pt-8">
           {page > 1 && (
             <Link
               href={page === 2 ? "/" : `/?page=${page - 1}`}
-              className="inline-flex items-center gap-2 rounded-lg border border-card-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition-all hover:bg-foreground hover:text-background hover:shadow-sm"
+              className="inline-flex items-center justify-center gap-2 rounded-lg border border-card-border bg-card px-5 py-3 text-sm font-medium text-foreground transition-all hover:bg-foreground hover:text-background hover:shadow-sm sm:py-2.5"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
@@ -111,10 +111,10 @@ async function HomeFeed({ userId, page }: { userId: string; page: number }) {
               Previous
             </Link>
           )}
-          <span className="text-sm text-muted">Page {page}</span>
+          <span className="py-2 text-center text-sm text-muted sm:px-0">Page {page}</span>
           <Link
             href={`/?page=${page + 1}`}
-            className="inline-flex items-center gap-2 rounded-lg border border-card-border bg-card px-5 py-2.5 text-sm font-medium text-foreground transition-all hover:bg-foreground hover:text-background hover:shadow-sm"
+            className="inline-flex items-center justify-center gap-2 rounded-lg border border-card-border bg-card px-5 py-3 text-sm font-medium text-foreground transition-all hover:bg-foreground hover:text-background hover:shadow-sm sm:py-2.5"
           >
             Next
             <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -138,25 +138,25 @@ export default async function Home({
     return (
       <main className="min-h-screen bg-background">
         <div className="mx-auto flex min-h-screen max-w-3xl flex-col items-center justify-center px-4 sm:px-6 lg:px-8">
-          <div className="w-full rounded-2xl border border-card-border bg-card p-10 shadow-lg">
+          <div className="w-full rounded-2xl border border-card-border bg-card p-6 shadow-lg sm:p-10">
             <div className="text-center">
-              <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-green-100 to-red-100 dark:from-green-900/30 dark:to-red-900/30">
-                <svg className="h-10 w-10 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-green-100 to-red-100 dark:from-green-900/30 dark:to-red-900/30 sm:mb-6 sm:h-20 sm:w-20">
+                <svg className="h-8 w-8 text-foreground sm:h-10 sm:w-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </div>
-              <h1 className="text-4xl font-bold tracking-tight text-foreground sm:text-5xl">
+              <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl md:text-5xl">
                 CrackdTagram
               </h1>
-              <p className="mt-4 text-lg text-muted">
+              <p className="mt-3 text-base text-muted sm:mt-4 sm:text-lg">
                 Discover and share humorous images and captions
               </p>
-              <p className="mt-2 text-muted">
+              <p className="mt-2 text-sm text-muted sm:text-base">
                 Sign in with Google to start exploring
               </p>
               <Link
                 href="/auth/login"
-                className="mt-8 inline-flex items-center gap-2 rounded-lg bg-foreground px-6 py-3 text-base font-medium text-background transition-all hover:scale-105 hover:shadow-lg"
+                className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-6 py-3 text-sm font-medium text-background transition-all hover:scale-105 hover:shadow-lg sm:mt-8 sm:w-auto sm:text-base"
               >
                 <svg className="h-5 w-5" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
@@ -178,7 +178,7 @@ export default async function Home({
 
   return (
     <main className="min-h-screen bg-background">
-      <div className="mx-auto max-w-3xl px-4 pb-12 sm:px-6">
+      <div className="mx-auto max-w-3xl px-4 pb-8 sm:px-6 sm:pb-12">
         <Suspense fallback={<Loading />}>
           <HomeFeed userId={user.id} page={page} />
         </Suspense>
