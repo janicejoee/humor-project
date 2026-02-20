@@ -222,3 +222,65 @@ export async function fetchLikedImagesWithCaptions(
     return { ok: false, error: message };
   }
 }
+
+export async function fetchDislikedImagesWithCaptions(
+  supabaseClient: SupabaseClient,
+  profileId: string
+): Promise<FetchImagesResult> {
+  try {
+    const { data: votesData, error: votesError } = await supabaseClient
+      .from("caption_votes")
+      .select("caption_id")
+      .eq("profile_id", profileId)
+      .lt("vote_value", 0);
+
+    if (votesError) {
+      return { ok: false, error: votesError.message };
+    }
+
+    const captionIds = (votesData ?? [])
+      .map((r) => (r as { caption_id: string }).caption_id)
+      .filter(Boolean);
+
+    if (captionIds.length === 0) {
+      return { ok: true, items: [] };
+    }
+
+    const { data: captionsData, error: captionsError } = await supabaseClient
+      .from("captions")
+      .select("id, content, like_count, is_public, images(id, url, image_description, is_public)")
+      .in("id", captionIds);
+
+    if (captionsError) {
+      return { ok: false, error: captionsError.message };
+    }
+
+    const rows = (captionsData ?? []) as CaptionWithImage[];
+    const items: ImageWithTopCaption[] = [];
+
+    for (const row of rows) {
+      const rawImage = row.image ?? row.images ?? null;
+      const image = Array.isArray(rawImage) ? rawImage[0] ?? null : rawImage;
+      if (!image) continue;
+      const imageRow: ImageRow = {
+        id: image.id,
+        url: image.url ?? null,
+        image_description: image.image_description ?? null,
+        is_public: image.is_public ?? null,
+        captions: null,
+      };
+      const topCaption: CaptionRow = {
+        id: row.id,
+        content: row.content ?? null,
+        like_count: Number(row.like_count) ?? 0,
+        is_public: row.is_public ?? false,
+      };
+      items.push({ image: imageRow, topCaption });
+    }
+
+    return { ok: true, items };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return { ok: false, error: message };
+  }
+}

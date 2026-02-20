@@ -86,32 +86,23 @@ export function PostCard({
   };
 
   return (
-    <article className="overflow-hidden rounded-lg border border-card-border bg-card shadow-sm">
-      {/* Image Section - 4:3 aspect so caption has more presence */}
-      <div className="aspect-[4/3] w-full overflow-hidden bg-[var(--card-border)]">
-        {img.url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={img.url}
-            alt={img.image_description ?? "Image"}
-            className="h-full w-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div className="flex h-full items-center justify-center text-muted">
-            No image
-          </div>
-        )}
-      </div>
+    <article className="group flex flex-col overflow-hidden rounded-xl border border-card-border bg-card shadow-sm transition-all hover:shadow-md hover:-translate-y-1">
+      {/* Caption and Actions Section - Top */}
+      <div className="px-5 pt-5 pb-4">
+        {/* Caption Section - Highlighted at top */}
+        <div className="mb-4">
+          <p className="text-lg leading-relaxed text-foreground">
+            {topCaption.content ?? "No caption yet for this image."}
+          </p>
+        </div>
 
-      {/* Like / Dislike Section */}
-      <div className="px-4 py-3">
-        <div className="flex items-center gap-1">
+        {/* Like / Dislike Section */}
+        <div className="flex items-center gap-2 border-t border-card-border pt-4">
           <button
             type="button"
             onClick={() => handleVote(1)}
             disabled={pending}
-            className="flex items-center justify-center rounded-lg p-2 transition-colors hover:bg-foreground/10 disabled:opacity-50"
+            className="flex items-center justify-center rounded-lg p-2 transition-all hover:bg-green-50 hover:scale-110 dark:hover:bg-green-900/20 disabled:opacity-50 disabled:hover:scale-100"
             aria-label={isLiked ? "Remove like" : "Like this caption"}
           >
             <ThumbUp filled={isLiked} />
@@ -120,31 +111,44 @@ export function PostCard({
             type="button"
             onClick={() => handleVote(-1)}
             disabled={pending}
-            className="flex items-center justify-center rounded-lg p-2 transition-colors hover:bg-foreground/10 disabled:opacity-50"
+            className="flex items-center justify-center rounded-lg p-2 transition-all hover:bg-red-50 hover:scale-110 dark:hover:bg-red-900/20 disabled:opacity-50 disabled:hover:scale-100"
             aria-label={isDisliked ? "Remove dislike" : "Dislike this caption"}
           >
             <ThumbDown filled={isDisliked} />
           </button>
           {Number(topCaption.like_count) > 0 && (
-            <div className="ml-2">
-              <p className="text-sm font-semibold text-foreground">
-                {Number(topCaption.like_count)} like{Number(topCaption.like_count) !== 1 ? "s" : ""}
-              </p>
+            <div className="ml-auto flex items-center gap-1 rounded-full bg-muted px-3 py-1">
+              <svg className="h-3.5 w-3.5 text-muted-foreground" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
+              </svg>
+              <span className="text-xs font-semibold text-foreground">
+                {Number(topCaption.like_count)}
+              </span>
             </div>
           )}
         </div>
         {error && (
-          <p className="mt-2 text-sm text-red-600 dark:text-red-400" role="alert">
+          <p className="mt-3 text-xs text-red-600 dark:text-red-400" role="alert">
             {error}
           </p>
         )}
+      </div>
 
-        {/* Caption Section */}
-        <div className="mt-3 px-2 pb-3">
-          <p className="text-base leading-relaxed text-foreground">
-            {topCaption.content ?? "No caption yet for this image."}
-          </p>
-        </div>
+      {/* Image Section - Bottom */}
+      <div className="aspect-[4/3] w-full overflow-hidden bg-[var(--card-border)]">
+        {img.url ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={img.url}
+            alt={img.image_description ?? "Image"}
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+            loading="lazy"
+          />
+        ) : (
+          <div className="flex h-full items-center justify-center text-muted">
+            No image
+          </div>
+        )}
       </div>
     </article>
   );
