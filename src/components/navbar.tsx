@@ -44,7 +44,6 @@ const navLinks = [
 
 export async function Navbar() {
   const user = await getCachedUser();
-
   return (
     <header className="border-b border-card-border bg-card/60 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-start gap-3 px-4 sm:gap-6 sm:px-6 lg:px-8">
@@ -59,37 +58,44 @@ export async function Navbar() {
           </div>
           <span>CrackdTagram</span>
         </Link>
-        {user && (
-          <>
-            {/* Desktop Navigation */}
-            <nav className="hidden sm:flex items-center gap-4">
-              <NavLinks links={navLinks} />
-            </nav>
-            {/* Mobile Navigation */}
-            <div className="sm:hidden">
-              <MobileNav navLinks={navLinks} />
-            </div>
-          </>
-        )}
-        {user && (
-          <div className="ml-auto flex items-center gap-2 sm:gap-4">
-            <div className="hidden md:block text-left">
-              <p className="text-xs text-muted">Signed in as</p>
-              <p className="text-sm font-medium text-foreground truncate max-w-[120px] lg:max-w-none">
-                {user.email ?? user.user_metadata?.email ?? "Unknown"}
-              </p>
-            </div>
-            <form action="/auth/logout" method="post">
-              <button
-                type="submit"
-                className="inline-flex items-center rounded-lg border border-card-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-foreground hover:text-background active:scale-95 sm:px-3"
-              >
-                <span className="hidden sm:inline">Log out</span>
-                <span className="sm:hidden">Out</span>
-              </button>
-            </form>
-          </div>
-        )}
+
+        {/* Desktop Navigation */}
+        <nav className="hidden sm:flex items-center gap-4">
+          <NavLinks links={navLinks} />
+        </nav>
+        {/* Mobile Navigation */}
+        <div className="sm:hidden">
+          <MobileNav navLinks={navLinks} />
+        </div>
+
+        <div className="ml-auto flex items-center gap-2 sm:gap-4">
+          {user ? (
+            <>
+              <div className="hidden md:block text-left">
+                <p className="text-xs text-muted">Signed in as</p>
+                <p className="text-sm font-medium text-foreground truncate max-w-[120px] lg:max-w-none">
+                  {user.email ?? user.user_metadata?.email ?? "Unknown"}
+                </p>
+              </div>
+              <form action="/auth/logout" method="post">
+                <button
+                  type="submit"
+                  className="inline-flex items-center rounded-lg border border-card-border bg-background px-2.5 py-1.5 text-xs font-medium text-foreground shadow-sm transition-all hover:bg-foreground hover:text-background active:scale-95 sm:px-3"
+                >
+                  <span className="hidden sm:inline">Log out</span>
+                  <span className="sm:hidden">Out</span>
+                </button>
+              </form>
+            </>
+          ) : (
+            <Link
+              href="/auth/login"
+              className="inline-flex items-center rounded-lg bg-foreground px-3 py-1.5 text-xs font-medium text-background shadow-sm transition-all hover:opacity-90 active:scale-95 sm:px-4 sm:text-sm"
+            >
+              Sign in
+            </Link>
+          )}
+        </div>
       </div>
     </header>
   );

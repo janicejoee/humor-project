@@ -10,6 +10,7 @@ interface PostCardProps {
   topCaption: CaptionRow;
   initialLiked?: boolean;
   initialDisliked?: boolean;
+  isAuthenticated?: boolean;
 }
 
 const ThumbUp = ({ filled }: { filled: boolean }) => (
@@ -41,6 +42,7 @@ export function PostCard({
   topCaption,
   initialLiked = false,
   initialDisliked = false,
+  isAuthenticated = true,
 }: PostCardProps) {
   const router = useRouter();
   const [isLiked, setIsLiked] = useState(initialLiked);
@@ -49,6 +51,10 @@ export function PostCard({
   const [error, setError] = useState<string | null>(null);
 
   const handleVote = async (voteValue: 1 | -1) => {
+    if (!isAuthenticated) {
+      router.push("/auth/login");
+      return;
+    }
     if (pending) return;
     setPending(true);
     setError(null);
@@ -103,7 +109,8 @@ export function PostCard({
             onClick={() => handleVote(1)}
             disabled={pending}
             className="flex items-center justify-center rounded-lg p-2.5 transition-all hover:bg-green-50 hover:scale-110 active:scale-95 dark:hover:bg-green-900/20 disabled:opacity-50 disabled:hover:scale-100 sm:p-2"
-            aria-label={isLiked ? "Remove like" : "Like this caption"}
+            aria-label={!isAuthenticated ? "Sign in to like" : isLiked ? "Remove like" : "Like this caption"}
+            title={!isAuthenticated ? "Sign in to vote" : undefined}
           >
             <ThumbUp filled={isLiked} />
           </button>
@@ -112,7 +119,8 @@ export function PostCard({
             onClick={() => handleVote(-1)}
             disabled={pending}
             className="flex items-center justify-center rounded-lg p-2.5 transition-all hover:bg-red-50 hover:scale-110 active:scale-95 dark:hover:bg-red-900/20 disabled:opacity-50 disabled:hover:scale-100 sm:p-2"
-            aria-label={isDisliked ? "Remove dislike" : "Dislike this caption"}
+            aria-label={!isAuthenticated ? "Sign in to dislike" : isDisliked ? "Remove dislike" : "Dislike this caption"}
+            title={!isAuthenticated ? "Sign in to vote" : undefined}
           >
             <ThumbDown filled={isDisliked} />
           </button>

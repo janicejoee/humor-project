@@ -8,6 +8,8 @@ const supabaseAnonKey =
   process.env.SUPABASE_ANON_KEY ??
   process.env.SUPABASE_KEY;
 
+const PROTECTED_ROUTES = ["/my-humor", "/generate"];
+
 export async function middleware(request: NextRequest) {
   if (!supabaseAnonKey) {
     return NextResponse.next();
@@ -30,7 +32,16 @@ export async function middleware(request: NextRequest) {
     },
   });
 
-  await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const { pathname } = request.nextUrl;
+  if (!user && PROTECTED_ROUTES.some((route) => pathname.startsWith(route))) {
+    const loginUrl = request.nextUrl.clone();
+    loginUrl.pathname = "/auth/login";
+    return NextResponse.redirect(loginUrl);
+  }
 
   return response;
 }

@@ -1,17 +1,6 @@
-import { redirect } from "next/navigation";
-import { createClient } from "@/lib/supabase/server";
 import { PageLayout } from "@/components/page-layout";
 
 export default async function AboutPage() {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    redirect("/auth/login");
-  }
-
   return (
     <PageLayout
       title="About"
