@@ -24,16 +24,17 @@ export default async function AboutPage() {
           </h2>
           <p className="text-muted mb-4">
             This is a platform for exploring and sharing humorous images and captions.
-            On the home page you can browse all captions sorted by likes; like captions
-            with the heart and they appear in My Humor.
+            Upload your own images, generate AI-powered captions, and browse what
+            others have created. Like the funniest captions and build your collection.
           </p>
           <h3 className="text-lg font-semibold text-foreground mt-6 mb-3">
             Features
           </h3>
           <ul className="list-disc list-inside text-muted space-y-2">
+            <li>Upload images and generate hilarious AI captions on the Generate page</li>
             <li>Browse all captions for public images, sorted by like count</li>
-            <li>Like captions to save them; your liked captions appear in My Humor</li>
-            <li>My Humor shows your liked images and captions in a grid</li>
+            <li>Like or dislike captions to curate your collection</li>
+            <li>View your uploads, liked captions, and disliked captions in My Humor</li>
             <li>Secure sign-in with Google</li>
             <li>Responsive design for all devices</li>
           </ul>

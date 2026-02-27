@@ -1,8 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { PostCard } from "@/components/post-card";
-import { fetchLikedImagesWithCaptions, fetchDislikedImagesWithCaptions } from "@/lib/data/images";
-import type { ImageWithTopCaption } from "@/lib/data/types";
+import { UploadedImageCard } from "@/components/uploaded-image-card";
+import { fetchLikedImagesWithCaptions, fetchDislikedImagesWithCaptions, fetchUserUploadedImages } from "@/lib/data/images";
+import type { ImageWithTopCaption, ImageRow } from "@/lib/data/types";
 import { createClient } from "@/lib/supabase/server";
 
 export default async function MyHumor() {
@@ -15,9 +16,10 @@ export default async function MyHumor() {
     redirect("/auth/login");
   }
 
-  const [likedResult, dislikedResult] = await Promise.all([
+  const [likedResult, dislikedResult, uploadsResult] = await Promise.all([
     fetchLikedImagesWithCaptions(supabase, user.id),
     fetchDislikedImagesWithCaptions(supabase, user.id),
+    fetchUserUploadedImages(supabase, user.id),
   ]);
 
   if (!likedResult.ok) {
@@ -52,7 +54,8 @@ export default async function MyHumor() {
 
   const likedItems = likedResult.items;
   const dislikedItems = dislikedResult.items;
-  const totalItems = likedItems.length + dislikedItems.length;
+  const uploadedImages = uploadsResult.ok ? uploadsResult.items : [];
+  const totalItems = likedItems.length + dislikedItems.length + uploadedImages.length;
 
   return (
     <main className="min-h-screen bg-background">
@@ -63,10 +66,16 @@ export default async function MyHumor() {
             My Humor
           </h1>
           <p className="mt-2 text-base text-muted sm:mt-3 sm:text-lg">
-            Your collection of liked and disliked captions
+            Your uploads, liked captions, and disliked captions
           </p>
           {totalItems > 0 && (
             <div className="mt-3 flex flex-wrap gap-2 sm:mt-4 sm:gap-4">
+              <div className="flex items-center gap-1.5 rounded-full bg-accent/10 px-3 py-1.5 text-xs font-medium text-accent dark:bg-accent/20 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm">
+                <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+                {uploadedImages.length} uploaded
+              </div>
               <div className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1.5 text-xs font-medium text-green-800 dark:bg-green-900/30 dark:text-green-300 sm:gap-2 sm:px-4 sm:py-2 sm:text-sm">
                 <svg className="h-3.5 w-3.5 sm:h-4 sm:w-4" fill="currentColor" viewBox="0 0 24 24">
                   <path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3" />
@@ -82,6 +91,54 @@ export default async function MyHumor() {
             </div>
           )}
         </div>
+
+        {/* My Uploads Section */}
+        <section className="mb-8 sm:mb-12">
+          <div className="mb-4 flex items-center gap-2 sm:mb-6 sm:gap-3">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent/10 sm:h-10 sm:w-10">
+              <svg className="h-4 w-4 text-accent sm:h-5 sm:w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-foreground sm:text-2xl">My Uploads</h2>
+              <p className="text-xs text-muted sm:text-sm">{uploadedImages.length} image{uploadedImages.length !== 1 ? "s" : ""}</p>
+            </div>
+          </div>
+          {uploadedImages.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3">
+              {uploadedImages.map((img: ImageRow) => (
+                <UploadedImageCard key={`upload-${img.id}`} image={img} />
+              ))}
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-dashed border-card-border bg-card/50 px-4 py-12 text-center sm:px-8 sm:py-20">
+              <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-accent/10 sm:mb-4 sm:h-16 sm:w-16">
+                <svg className="h-6 w-6 text-accent sm:h-8 sm:w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <p className="text-base font-medium text-foreground sm:text-lg">No uploads yet</p>
+              <p className="mt-2 text-sm text-muted sm:text-base">
+                Upload an image and generate some hilarious captions!
+              </p>
+              <Link
+                href="/generate"
+                className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-lg bg-foreground px-4 py-2.5 text-sm font-medium text-background transition-colors hover:opacity-90 sm:mt-6 sm:w-auto"
+              >
+                Generate captions
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+              </Link>
+            </div>
+          )}
+        </section>
+
+        {/* Divider */}
+        {uploadedImages.length > 0 && (likedItems.length > 0 || dislikedItems.length > 0) && (
+          <div className="my-6 border-t border-card-border sm:my-8" />
+        )}
 
         {/* Liked Section */}
         <section className="mb-8 sm:mb-12">

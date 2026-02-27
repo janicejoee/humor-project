@@ -155,6 +155,32 @@ export async function fetchAllCaptionsWithImages(
   }
 }
 
+export type FetchUploadedImagesResult =
+  | { ok: true; items: ImageRow[] }
+  | { ok: false; error: string };
+
+export async function fetchUserUploadedImages(
+  supabaseClient: SupabaseClient,
+  userId: string
+): Promise<FetchUploadedImagesResult> {
+  try {
+    const { data, error } = await supabaseClient
+      .from("images")
+      .select("id, url, image_description, is_public, captions(*)")
+      .eq("profile_id", userId)
+      .order("id", { ascending: false });
+
+    if (error) {
+      return { ok: false, error: error.message };
+    }
+
+    return { ok: true, items: (data ?? []) as ImageRow[] };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return { ok: false, error: message };
+  }
+}
+
 /** Caption row as returned with nested image from captions table (relation name may be "image" or "images"; can be array or single). */
 type CaptionWithImage = CaptionRow & {
   image?: ImageRow | ImageRow[] | null;
