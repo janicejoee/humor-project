@@ -10,8 +10,8 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Humor Project",
-  description: "A project to explore the humor of the internet",
+  title: "CrackdTagram",
+  description: "Upload images and generate hilarious AI captions",
 };
 
 export default function RootLayout({
