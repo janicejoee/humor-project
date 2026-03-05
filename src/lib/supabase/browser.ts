@@ -1,16 +1,15 @@
 import { createBrowserClient } from "@supabase/ssr";
 
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ??
-  "https://qihsgnfjqmkjmoowyfbn.supabase.co";
-// Anon key must be public for client-side; use same value as SUPABASE_KEY
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
-if (!supabaseKey) {
+if (!supabaseUrl || !supabaseKey) {
   throw new Error(
-    "Missing NEXT_PUBLIC_SUPABASE_ANON_KEY. Add it to .env.local (use the same value as SUPABASE_KEY for auth)."
+    "Missing Supabase env vars. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to .env.local."
   );
 }
+const url: string = supabaseUrl;
+const key: string = supabaseKey;
 
 export function createClient() {
-  return createBrowserClient(supabaseUrl, supabaseKey as string);
+  return createBrowserClient(url, key);
 }

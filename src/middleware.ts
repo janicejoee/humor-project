@@ -1,17 +1,14 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
-const supabaseUrl =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://qihsgnfjqmkjmoowyfbn.supabase.co";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ??
-  process.env.SUPABASE_ANON_KEY ??
-  process.env.SUPABASE_KEY;
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? process.env.SUPABASE_ANON_KEY ?? process.env.SUPABASE_KEY;
 
 const PROTECTED_ROUTES = ["/my-humor", "/generate"];
 
 export async function middleware(request: NextRequest) {
-  if (!supabaseAnonKey) {
+  if (!supabaseUrl || !supabaseAnonKey) {
     return NextResponse.next();
   }
 
