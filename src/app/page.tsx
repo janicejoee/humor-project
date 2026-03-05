@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { Suspense } from "react";
 import { unstable_cache } from "next/cache";
-import { fetchAllCaptionsWithImages } from "@/lib/data/images";
+import { fetchAllCaptionsWithImages, type CaptionSort } from "@/lib/data/images";
 import { getCachedClient, getCachedUser } from "@/lib/supabase/server";
 import { PostCard } from "@/components/post-card";
 import Loading from "./loading";
@@ -15,10 +15,12 @@ const CACHE_REVALIDATE_SECONDS = 60;
 async function HomeFeed({
   userId,
   page,
+  sort,
   isAuthenticated,
 }: {
   userId: string | null;
   page: number;
+  sort: CaptionSort;
   isAuthenticated: boolean;
 }) {
   const itemsOffset = (page - 1) * ITEMS_PER_PAGE;
@@ -29,9 +31,10 @@ async function HomeFeed({
       return fetchAllCaptionsWithImages(client, userId, {
         itemsLimit: ITEMS_PER_PAGE,
         itemsOffset,
+        sort,
       });
     },
-    ["home-captions", userId ?? "anon", String(page)],
+    ["home-captions", userId ?? "anon", String(page), sort],
     { revalidate: CACHE_REVALIDATE_SECONDS }
   );
 
@@ -58,6 +61,22 @@ async function HomeFeed({
 
   const items = result.items;
 
+  const buildPageHref = (pageNumber: number) => {
+    const params = new URLSearchParams();
+    if (pageNumber > 1) params.set("page", String(pageNumber));
+    if (sort !== "like_desc") params.set("sort", sort);
+    const qs = params.toString();
+    return qs ? `/?${qs}` : "/";
+  };
+
+  const buildSortHref = (nextSort: CaptionSort) => {
+    const params = new URLSearchParams();
+    if (page > 1) params.set("page", String(page));
+    if (nextSort !== "like_desc") params.set("sort", nextSort);
+    const qs = params.toString();
+    return qs ? `/?${qs}` : "/";
+  };
+
   return (
     <>
       {/* Page Header */}
@@ -66,8 +85,53 @@ async function HomeFeed({
           Discover Humor
         </h1>
         <p className="mt-2 text-sm text-muted sm:text-base">
-          Browse captions sorted by popularity. Like the ones that make you laugh!
+          Browse captions and sort by likes or upload date. Like the ones that make you laugh!
         </p>
+        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs sm:mt-4 sm:text-sm">
+          <span className="text-muted">Sort by:</span>
+          <div className="flex flex-wrap gap-1.5">
+            <Link
+              href={buildSortHref("like_desc")}
+              className={`rounded-full border px-3 py-1 ${
+                sort === "like_desc"
+                  ? "border-foreground bg-foreground text-background shadow-sm"
+                  : "border-card-border bg-card text-foreground hover:bg-muted"
+              }`}
+            >
+              Most liked
+            </Link>
+            <Link
+              href={buildSortHref("like_asc")}
+              className={`rounded-full border px-3 py-1 ${
+                sort === "like_asc"
+                  ? "border-foreground bg-foreground text-background shadow-sm"
+                  : "border-card-border bg-card text-foreground hover:bg-muted"
+              }`}
+            >
+              Least liked
+            </Link>
+            <Link
+              href={buildSortHref("date_newest")}
+              className={`rounded-full border px-3 py-1 ${
+                sort === "date_newest"
+                  ? "border-foreground bg-foreground text-background shadow-sm"
+                  : "border-card-border bg-card text-foreground hover:bg-muted"
+              }`}
+            >
+              Newest
+            </Link>
+            <Link
+              href={buildSortHref("date_oldest")}
+              className={`rounded-full border px-3 py-1 ${
+                sort === "date_oldest"
+                  ? "border-foreground bg-foreground text-background shadow-sm"
+                  : "border-card-border bg-card text-foreground hover:bg-muted"
+              }`}
+            >
+              Oldest
+            </Link>
+          </div>
+        </div>
         {page > 1 && (
           <div className="mt-2 sm:mt-3">
             <span className="text-xs text-muted sm:text-sm">Page {page}</span>
@@ -110,7 +174,7 @@ async function HomeFeed({
         <div className="mt-8 flex flex-col items-stretch gap-3 border-t border-card-border pt-6 sm:mt-12 sm:flex-row sm:items-center sm:justify-center sm:gap-3 sm:pt-8">
           {page > 1 && (
             <Link
-              href={page === 2 ? "/" : `/?page=${page - 1}`}
+              href={buildPageHref(page - 1)}
               className="inline-flex items-center justify-center gap-2 rounded-lg border border-card-border bg-card px-5 py-3 text-sm font-medium text-foreground transition-all hover:bg-foreground hover:text-background hover:shadow-sm sm:py-2.5"
             >
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -121,7 +185,7 @@ async function HomeFeed({
           )}
           <span className="py-2 text-center text-sm text-muted sm:px-0">Page {page}</span>
           <Link
-            href={`/?page=${page + 1}`}
+            href={buildPageHref(page + 1)}
             className="inline-flex items-center justify-center gap-2 rounded-lg border border-card-border bg-card px-5 py-3 text-sm font-medium text-foreground transition-all hover:bg-foreground hover:text-background hover:shadow-sm sm:py-2.5"
           >
             Next
@@ -138,11 +202,16 @@ async function HomeFeed({
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; sort?: string }>;
 }) {
   const user = await getCachedUser();
   const params = await searchParams;
   const page = Math.max(1, parseInt(params?.page ?? "1", 10) || 1);
+  const rawSort = params?.sort ?? "like_desc";
+  const allowedSorts: CaptionSort[] = ["like_desc", "like_asc", "date_newest", "date_oldest"];
+  const sort: CaptionSort = allowedSorts.includes(rawSort as CaptionSort)
+    ? (rawSort as CaptionSort)
+    : "like_desc";
 
   return (
     <main className="min-h-screen bg-background">
@@ -151,6 +220,7 @@ export default async function Home({
           <HomeFeed
             userId={user?.id ?? null}
             page={page}
+            sort={sort}
             isAuthenticated={!!user}
           />
         </Suspense>

@@ -19,6 +19,12 @@ export type FetchImagesResult =
   | { ok: true; items: ImageWithTopCaption[] }
   | { ok: false; error: string };
 
+export type CaptionSort =
+  | "like_desc"
+  | "like_asc"
+  | "date_newest"
+  | "date_oldest";
+
 export async function fetchImagesWithTopCaptions(): Promise<FetchImagesResult> {
   try {
     const { data, error } = await supabase
@@ -63,12 +69,15 @@ export type FetchAllCaptionsOptions = {
   itemsLimit?: number;
   /** Skip this many items after sort (for page 2, etc.). */
   itemsOffset?: number;
+  /** Sort order for caption cards (default "like_desc"). */
+  sort?: CaptionSort;
 };
 
 const DEFAULT_IMAGE_LIMIT = 50;
 const DEFAULT_IMAGE_OFFSET = 0;
 const DEFAULT_ITEMS_LIMIT = 30;
 const DEFAULT_ITEMS_OFFSET = 0;
+const DEFAULT_SORT: CaptionSort = "like_desc";
 
 /**
  * Fetches captions for public images (one card per caption), sorted by like_count desc.
@@ -85,6 +94,7 @@ export async function fetchAllCaptionsWithImages(
     const imageOffset = options?.imageOffset ?? DEFAULT_IMAGE_OFFSET;
     const itemsLimit = options?.itemsLimit ?? DEFAULT_ITEMS_LIMIT;
     const itemsOffset = options?.itemsOffset ?? DEFAULT_ITEMS_OFFSET;
+    const sort: CaptionSort = options?.sort ?? DEFAULT_SORT;
 
     let imagesQuery = supabaseClient
       .from("images")
@@ -122,15 +132,34 @@ export async function fetchAllCaptionsWithImages(
     for (const row of rows) {
       const captions = row.captions ?? [];
       for (const cap of captions) {
-        items.push({ image: row, topCaption: cap, userHasVoted: false, userHasDisliked: false });
+        items.push({
+          image: row,
+          topCaption: cap,
+          userHasVoted: false,
+          userHasDisliked: false,
+        });
       }
     }
 
     items.sort((a, b) => {
       const aLikes = Number(a.topCaption.like_count) ?? 0;
       const bLikes = Number(b.topCaption.like_count) ?? 0;
-      if (bLikes !== aLikes) return bLikes - aLikes;
-      return String(a.topCaption.id).localeCompare(String(b.topCaption.id));
+      const aImageId = String(a.image.id);
+      const bImageId = String(b.image.id);
+
+      switch (sort) {
+        case "like_asc":
+          if (aLikes !== bLikes) return aLikes - bLikes;
+          return aImageId.localeCompare(bImageId);
+        case "date_newest":
+          return bImageId.localeCompare(aImageId);
+        case "date_oldest":
+          return aImageId.localeCompare(bImageId);
+        case "like_desc":
+        default:
+          if (bLikes !== aLikes) return bLikes - aLikes;
+          return aImageId.localeCompare(bImageId);
+      }
     });
 
     if (profileId && !votesResult?.error && votesResult?.data?.length) {
