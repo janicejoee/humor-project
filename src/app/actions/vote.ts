@@ -34,17 +34,38 @@ export async function voteCaption(
     return { ok: true };
   }
 
-  const nowUtc = new Date().toISOString();
-  const { error } = await supabase.from("caption_votes").upsert(
-    {
-      profile_id: user.id,
-      caption_id: captionId,
-      vote_value: voteValue,
-      created_datetime_utc: nowUtc,
-      modified_datetime_utc: nowUtc,
-    },
-    { onConflict: "profile_id,caption_id" }
-  );
+  // New auditing columns are non-nullable across your schema.
+  // - created_by_user_id should only be set when the row is first created.
+  // - modified_by_user_id should be updated every time the row changes.
+  //
+  // We avoid `upsert()` here so we can preserve created_* fields on conflict.
+  const { data: existingRow, error: existingError } = await supabase
+    .from("caption_votes")
+    .select("profile_id")
+    .eq("profile_id", user.id)
+    .eq("caption_id", captionId)
+    .maybeSingle();
+
+  if (existingError) {
+    return { ok: false, error: existingError.message };
+  }
+
+  const { error } = existingRow
+    ? await supabase
+        .from("caption_votes")
+        .update({
+          vote_value: voteValue,
+          modified_by_user_id: user.id,
+        })
+        .eq("profile_id", user.id)
+        .eq("caption_id", captionId)
+    : await supabase.from("caption_votes").insert({
+        profile_id: user.id,
+        caption_id: captionId,
+        vote_value: voteValue,
+        created_by_user_id: user.id,
+        modified_by_user_id: user.id,
+      });
 
   if (error) {
     return { ok: false, error: error.message };
