@@ -45,7 +45,7 @@ const navLinks = [
 export async function Navbar() {
   const user = await getCachedUser();
   return (
-    <header className="border-b border-card-border bg-card/60 backdrop-blur">
+    <header className="sticky top-0 z-50 border-b border-card-border bg-card/80 backdrop-blur">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-start gap-3 px-4 sm:gap-6 sm:px-6 lg:px-8">
         <Link
           href="/"
