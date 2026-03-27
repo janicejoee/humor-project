@@ -25,12 +25,18 @@ export type CaptionSort =
   | "date_newest"
   | "date_oldest";
 
+function toTime(value: string | null | undefined): number {
+  if (!value) return NaN;
+  const t = Date.parse(value);
+  return Number.isFinite(t) ? t : NaN;
+}
+
 export async function fetchImagesWithTopCaptions(): Promise<FetchImagesResult> {
   try {
     const { data, error } = await supabase
       .from("images")
-      .select("id, url, image_description, is_public, captions(*)")
-      .eq("is_public", true);
+      .select("id, url, image_description, is_public, created_datetime_utc, captions(*)")
+      ;
 
     if (error) {
       return { ok: false, error: error.message };
@@ -96,10 +102,85 @@ export async function fetchAllCaptionsWithImages(
     const itemsOffset = options?.itemsOffset ?? DEFAULT_ITEMS_OFFSET;
     const sort: CaptionSort = options?.sort ?? DEFAULT_SORT;
 
+    // For like-based sorting, query captions directly (avoids image query caps and ensures ordering is correct).
+    if (sort === "like_desc" || sort === "like_asc") {
+      const votesPromise =
+        profileId != null
+          ? supabaseClient
+              .from("caption_votes")
+              .select("caption_id, vote_value")
+              .eq("profile_id", profileId)
+          : null;
+
+      const captionsQuery = supabaseClient
+        .from("captions")
+        .select(
+          "id, content, like_count, is_public, images(id, url, image_description, is_public, created_datetime_utc)"
+        )
+        .order("like_count", { ascending: sort === "like_asc" })
+        .order("id", { ascending: true })
+        .range(itemsOffset, itemsOffset + itemsLimit - 1);
+
+      const [captionsResult, votesResult] = await Promise.all([
+        captionsQuery,
+        votesPromise ?? Promise.resolve({ data: null, error: null }),
+      ]);
+
+      if (captionsResult.error) {
+        return { ok: false, error: captionsResult.error.message };
+      }
+
+      const rows = (captionsResult.data ?? []) as CaptionWithImage[];
+      const items: ImageWithTopCaption[] = [];
+
+      for (const row of rows) {
+        const rawImage = row.image ?? row.images ?? null;
+        const image = Array.isArray(rawImage) ? rawImage[0] ?? null : rawImage;
+        if (!image) continue;
+        const imageRow: ImageRow = {
+          id: image.id,
+          url: image.url ?? null,
+          image_description: image.image_description ?? null,
+          is_public: image.is_public ?? null,
+          created_datetime_utc: (image as { created_datetime_utc?: string | null })
+            .created_datetime_utc ?? null,
+          captions: null,
+        };
+        const topCaption: CaptionRow = {
+          id: row.id,
+          content: row.content ?? null,
+          like_count: Number(row.like_count) ?? 0,
+          is_public: row.is_public ?? false,
+        };
+        items.push({
+          image: imageRow,
+          topCaption,
+          userHasVoted: false,
+          userHasDisliked: false,
+        });
+      }
+
+      if (profileId && !votesResult?.error && votesResult?.data?.length) {
+        const votes = votesResult.data as { caption_id: string; vote_value: number }[];
+        const likedCaptionIds = new Set(
+          votes.filter((r) => Number(r.vote_value) > 0).map((r) => r.caption_id)
+        );
+        const dislikedCaptionIds = new Set(
+          votes.filter((r) => Number(r.vote_value) < 0).map((r) => r.caption_id)
+        );
+        for (const item of items) {
+          item.userHasVoted = likedCaptionIds.has(item.topCaption.id);
+          item.userHasDisliked = dislikedCaptionIds.has(item.topCaption.id);
+        }
+      }
+
+      return { ok: true, items };
+    }
+
     let imagesQuery = supabaseClient
       .from("images")
-      .select("id, url, image_description, is_public, captions(*)")
-      .eq("is_public", true);
+      .select("id, url, image_description, is_public, created_datetime_utc, captions(*)")
+      ;
     
     // Only apply range if imageLimit is specified (for pagination by images)
     if (imageLimit != null) {
@@ -146,19 +227,27 @@ export async function fetchAllCaptionsWithImages(
       const bLikes = Number(b.topCaption.like_count) ?? 0;
       const aImageId = String(a.image.id);
       const bImageId = String(b.image.id);
+      const aCreated = toTime(a.image.created_datetime_utc);
+      const bCreated = toTime(b.image.created_datetime_utc);
 
       switch (sort) {
-        case "like_asc":
-          if (aLikes !== bLikes) return aLikes - bLikes;
-          return aImageId.localeCompare(bImageId);
         case "date_newest":
+          if (Number.isFinite(aCreated) && Number.isFinite(bCreated) && aCreated !== bCreated) {
+            return bCreated - aCreated;
+          }
           return bImageId.localeCompare(aImageId);
         case "date_oldest":
+          if (Number.isFinite(aCreated) && Number.isFinite(bCreated) && aCreated !== bCreated) {
+            return aCreated - bCreated;
+          }
           return aImageId.localeCompare(bImageId);
-        case "like_desc":
         default:
-          if (bLikes !== aLikes) return bLikes - aLikes;
-          return aImageId.localeCompare(bImageId);
+          // Should be unreachable because like-based sorts return early above.
+          // Fall back to date_newest semantics to keep ordering stable.
+          if (Number.isFinite(aCreated) && Number.isFinite(bCreated) && aCreated !== bCreated) {
+            return bCreated - aCreated;
+          }
+          return bImageId.localeCompare(aImageId);
       }
     });
 
@@ -195,7 +284,7 @@ export async function fetchUserUploadedImages(
   try {
     const { data, error } = await supabaseClient
       .from("images")
-      .select("id, url, image_description, is_public, captions(*)")
+      .select("id, url, image_description, is_public, created_datetime_utc, captions(*)")
       .eq("profile_id", userId)
       .order("id", { ascending: false });
 

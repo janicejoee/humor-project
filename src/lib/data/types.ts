@@ -10,6 +10,7 @@ export type ImageRow = {
   url: string | null;
   image_description: string | null;
   is_public: boolean | null;
+  created_datetime_utc?: string | null;
   captions: CaptionRow[] | null;
 };
 
