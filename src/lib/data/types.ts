@@ -23,6 +23,17 @@ export type ImageWithTopCaption = {
   userHasDisliked?: boolean;
 };
 
+export type CaptionWithVoteState = {
+  caption: CaptionRow;
+  userHasVoted: boolean;
+  userHasDisliked: boolean;
+};
+
+export type ImageWithCaptionGroup = {
+  image: ImageRow;
+  captions: CaptionWithVoteState[];
+};
+
 export type ProfileRow = {
   id: string;
   email: string | null;

@@ -1,6 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { supabase } from "@/lib/supabase/client";
-import type { CaptionRow, ImageRow, ImageWithTopCaption } from "@/lib/data/types";
+import type {
+  CaptionRow,
+  ImageRow,
+  ImageWithTopCaption,
+  ImageWithCaptionGroup,
+} from "@/lib/data/types";
 
 function getTopCaption(
   captions: CaptionRow[] | null | undefined
@@ -17,6 +22,10 @@ function getTopCaption(
 
 export type FetchImagesResult =
   | { ok: true; items: ImageWithTopCaption[] }
+  | { ok: false; error: string };
+
+export type FetchImageCaptionGroupsResult =
+  | { ok: true; items: ImageWithCaptionGroup[] }
   | { ok: false; error: string };
 
 export type CaptionSort =
@@ -66,6 +75,113 @@ export async function fetchImagesWithTopCaptions(): Promise<FetchImagesResult> {
   }
 }
 
+export async function fetchImageCaptionGroups(
+  supabaseClient: SupabaseClient,
+  profileId?: string | null,
+  options?: { itemsLimit?: number; itemsOffset?: number }
+): Promise<FetchImageCaptionGroupsResult> {
+  try {
+    const itemsLimit = options?.itemsLimit ?? DEFAULT_ITEMS_LIMIT;
+    const itemsOffset = options?.itemsOffset ?? DEFAULT_ITEMS_OFFSET;
+
+    const [captionsResult, votesResult] = await Promise.all([
+      supabaseClient
+        .from("captions")
+        .select(
+          "id, content, like_count, is_public, images(id, url, image_description, is_public, created_datetime_utc)"
+        )
+        .order("like_count", { ascending: false })
+        .order("id", { ascending: true }),
+      profileId != null
+        ? supabaseClient
+            .from("caption_votes")
+            .select("caption_id, vote_value")
+            .eq("profile_id", profileId)
+        : Promise.resolve({ data: null, error: null }),
+    ]);
+
+    if (captionsResult.error) {
+      return { ok: false, error: captionsResult.error.message };
+    }
+
+    const rows = (captionsResult.data ?? []) as CaptionWithImage[];
+    const likedCaptionIds = new Set<string>();
+    const dislikedCaptionIds = new Set<string>();
+
+    if (!votesResult.error && votesResult.data?.length) {
+      const votes = votesResult.data as { caption_id: string; vote_value: number }[];
+      for (const vote of votes) {
+        if (Number(vote.vote_value) > 0) likedCaptionIds.add(vote.caption_id);
+        if (Number(vote.vote_value) < 0) dislikedCaptionIds.add(vote.caption_id);
+      }
+    }
+
+    const groupedByImage = new Map<string, ImageWithCaptionGroup>();
+
+    for (const row of rows) {
+      const rawImage = row.image ?? row.images ?? null;
+      const image = Array.isArray(rawImage) ? rawImage[0] ?? null : rawImage;
+      if (!image) continue;
+
+      const imageId = String(image.id);
+      if (!groupedByImage.has(imageId)) {
+        groupedByImage.set(imageId, {
+          image: {
+            id: image.id,
+            url: image.url ?? null,
+            image_description: image.image_description ?? null,
+            is_public: image.is_public ?? null,
+            created_datetime_utc: image.created_datetime_utc ?? null,
+            captions: null,
+          },
+          captions: [],
+        });
+      }
+
+      const group = groupedByImage.get(imageId);
+      if (!group) continue;
+      group.captions.push({
+        caption: {
+          id: row.id,
+          content: row.content ?? null,
+          like_count: Number(row.like_count) ?? 0,
+          is_public: row.is_public ?? false,
+        },
+        userHasVoted: likedCaptionIds.has(row.id),
+        userHasDisliked: dislikedCaptionIds.has(row.id),
+      });
+    }
+
+    const groupedItems = Array.from(groupedByImage.values()).filter(
+      (item) => item.captions.length > 0
+    );
+
+    for (const group of groupedItems) {
+      group.captions.sort((a, b) => {
+        const aLikes = Number(a.caption.like_count) ?? 0;
+        const bLikes = Number(b.caption.like_count) ?? 0;
+        if (bLikes !== aLikes) return bLikes - aLikes;
+        return String(a.caption.id).localeCompare(String(b.caption.id));
+      });
+    }
+
+    groupedItems.sort((a, b) => {
+      const aTopLikes = Number(a.captions[0]?.caption.like_count) ?? 0;
+      const bTopLikes = Number(b.captions[0]?.caption.like_count) ?? 0;
+      if (bTopLikes !== aTopLikes) return bTopLikes - aTopLikes;
+      return String(a.image.id).localeCompare(String(b.image.id));
+    });
+
+    return {
+      ok: true,
+      items: groupedItems.slice(itemsOffset, itemsOffset + itemsLimit),
+    };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : "Unknown error";
+    return { ok: false, error: message };
+  }
+}
+
 export type FetchAllCaptionsOptions = {
   /** Max number of images to fetch from DB (default 50). */
   imageLimit?: number;
@@ -79,7 +195,6 @@ export type FetchAllCaptionsOptions = {
   sort?: CaptionSort;
 };
 
-const DEFAULT_IMAGE_LIMIT = 50;
 const DEFAULT_IMAGE_OFFSET = 0;
 const DEFAULT_ITEMS_LIMIT = 30;
 const DEFAULT_ITEMS_OFFSET = 0;
@@ -223,8 +338,6 @@ export async function fetchAllCaptionsWithImages(
     }
 
     items.sort((a, b) => {
-      const aLikes = Number(a.topCaption.like_count) ?? 0;
-      const bLikes = Number(b.topCaption.like_count) ?? 0;
       const aImageId = String(a.image.id);
       const bImageId = String(b.image.id);
       const aCreated = toTime(a.image.created_datetime_utc);

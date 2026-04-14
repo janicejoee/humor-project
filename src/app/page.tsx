@@ -1,45 +1,30 @@
 import Link from "next/link";
 import { Suspense } from "react";
-import { unstable_cache } from "next/cache";
-import { fetchAllCaptionsWithImages, type CaptionSort } from "@/lib/data/images";
+import { fetchImageCaptionGroups } from "@/lib/data/images";
 import { getCachedClient, getCachedUser } from "@/lib/supabase/server";
-import { PostCard } from "@/components/post-card";
+import { ImageCaptionGroupCard } from "@/components/image-caption-group-card";
 import Loading from "./loading";
 
 const FETCH_TIMEOUT_MS = 10000;
 const ITEMS_PER_PAGE = 30;
-// No imageLimit - fetch all images so pagination works correctly
-// Pagination is by caption cards (items), not images
-const CACHE_REVALIDATE_SECONDS = 60;
 
 async function HomeFeed({
   userId,
   page,
-  sort,
   isAuthenticated,
 }: {
   userId: string | null;
   page: number;
-  sort: CaptionSort;
   isAuthenticated: boolean;
 }) {
   const itemsOffset = (page - 1) * ITEMS_PER_PAGE;
-
-  const cachedFetch = unstable_cache(
-    async () => {
-      const client = await getCachedClient();
-      return fetchAllCaptionsWithImages(client, userId, {
-        itemsLimit: ITEMS_PER_PAGE,
-        itemsOffset,
-        sort,
-      });
-    },
-    ["home-captions", userId ?? "anon", String(page), sort],
-    { revalidate: CACHE_REVALIDATE_SECONDS }
-  );
+  const client = await getCachedClient();
 
   const result = await Promise.race([
-    cachedFetch(),
+    fetchImageCaptionGroups(client, userId, {
+      itemsLimit: ITEMS_PER_PAGE,
+      itemsOffset,
+    }),
     new Promise<{ ok: false; error: string }>((resolve) =>
       setTimeout(
         () => resolve({ ok: false, error: "Request timed out. Please try again." }),
@@ -64,15 +49,6 @@ async function HomeFeed({
   const buildPageHref = (pageNumber: number) => {
     const params = new URLSearchParams();
     if (pageNumber > 1) params.set("page", String(pageNumber));
-    if (sort !== "like_desc") params.set("sort", sort);
-    const qs = params.toString();
-    return qs ? `/?${qs}` : "/";
-  };
-
-  const buildSortHref = (nextSort: CaptionSort) => {
-    const params = new URLSearchParams();
-    if (page > 1) params.set("page", String(page));
-    if (nextSort !== "like_desc") params.set("sort", nextSort);
     const qs = params.toString();
     return qs ? `/?${qs}` : "/";
   };
@@ -85,53 +61,8 @@ async function HomeFeed({
           Discover Humor
         </h1>
         <p className="mt-2 text-sm text-muted sm:text-base">
-          Browse captions and sort by likes or upload date. Like the ones that make you laugh!
+          Browse caption groups ranked by likes. Captions stay grouped with their image.
         </p>
-        <div className="mt-3 flex flex-wrap items-center gap-2 text-xs sm:mt-4 sm:text-sm">
-          <span className="text-muted">Sort by:</span>
-          <div className="flex flex-wrap gap-1.5">
-            <Link
-              href={buildSortHref("like_desc")}
-              className={`rounded-full border px-3 py-1 ${
-                sort === "like_desc"
-                  ? "border-foreground bg-foreground text-background shadow-sm"
-                  : "border-card-border bg-card text-foreground hover:bg-muted"
-              }`}
-            >
-              Most liked
-            </Link>
-            <Link
-              href={buildSortHref("like_asc")}
-              className={`rounded-full border px-3 py-1 ${
-                sort === "like_asc"
-                  ? "border-foreground bg-foreground text-background shadow-sm"
-                  : "border-card-border bg-card text-foreground hover:bg-muted"
-              }`}
-            >
-              Least liked
-            </Link>
-            <Link
-              href={buildSortHref("date_newest")}
-              className={`rounded-full border px-3 py-1 ${
-                sort === "date_newest"
-                  ? "border-foreground bg-foreground text-background shadow-sm"
-                  : "border-card-border bg-card text-foreground hover:bg-muted"
-              }`}
-            >
-              Newest
-            </Link>
-            <Link
-              href={buildSortHref("date_oldest")}
-              className={`rounded-full border px-3 py-1 ${
-                sort === "date_oldest"
-                  ? "border-foreground bg-foreground text-background shadow-sm"
-                  : "border-card-border bg-card text-foreground hover:bg-muted"
-              }`}
-            >
-              Oldest
-            </Link>
-          </div>
-        </div>
         {page > 1 && (
           <div className="mt-2 sm:mt-3">
             <span className="text-xs text-muted sm:text-sm">Page {page}</span>
@@ -142,13 +73,11 @@ async function HomeFeed({
       {/* Captions Feed */}
       {items.length > 0 ? (
         <div className="space-y-4 sm:space-y-6">
-          {items.map(({ image: img, topCaption, userHasVoted, userHasDisliked }) => (
-            <PostCard
-              key={`${img.id}-${topCaption.id}`}
+          {items.map(({ image: img, captions }) => (
+            <ImageCaptionGroupCard
+              key={img.id}
               image={img}
-              topCaption={topCaption}
-              initialLiked={userHasVoted ?? false}
-              initialDisliked={userHasDisliked ?? false}
+              captions={captions}
               isAuthenticated={isAuthenticated}
             />
           ))}
@@ -202,16 +131,11 @@ async function HomeFeed({
 export default async function Home({
   searchParams,
 }: {
-  searchParams: Promise<{ page?: string; sort?: string }>;
+  searchParams: Promise<{ page?: string }>;
 }) {
   const user = await getCachedUser();
   const params = await searchParams;
   const page = Math.max(1, parseInt(params?.page ?? "1", 10) || 1);
-  const rawSort = params?.sort ?? "like_desc";
-  const allowedSorts: CaptionSort[] = ["like_desc", "like_asc", "date_newest", "date_oldest"];
-  const sort: CaptionSort = allowedSorts.includes(rawSort as CaptionSort)
-    ? (rawSort as CaptionSort)
-    : "like_desc";
 
   return (
     <main className="min-h-screen bg-background">
@@ -220,7 +144,6 @@ export default async function Home({
           <HomeFeed
             userId={user?.id ?? null}
             page={page}
-            sort={sort}
             isAuthenticated={!!user}
           />
         </Suspense>
